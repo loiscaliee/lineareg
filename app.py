@@ -9,53 +9,45 @@ def load_model():
     try:
         return joblib.load('best_model_bbca.joblib')
     except:
-        st.error("Model tidak ditemukan.")
+        st.error("File model 'best_model_bbca.joblib' tidak ditemukan.")
         return None
 
 model = load_model()
 
-st.title("📈 Prediksi Saham BBCA (Simple)")
-st.write("Prediksi harga penutupan saham menggunakan Linear Regression.")
+st.title("📈 Prediksi Harga Saham BBCA")
+st.write("Aplikasi ini memprediksi harga saham besok berdasarkan harga hari ini.")
 
-with st.sidebar:
-    st.header("Parameter")
-    last_price = st.number_input("Harga Kemarin (Rp)", value=10200.0, step=25.0)
-    days = st.slider("Jumlah Hari Prediksi", 1, 7, 3)
-    predict_btn = st.button("Prediksi")
+st.divider()
 
-if predict_btn and model:
+current_price = st.number_input(
+    "Harga Penutupan Hari Ini (Rp):", 
+    min_value=0.0, 
+    value=10200.0, 
+    step=25.0
+)
 
-    future_prices = []
-    current_val = last_price
+if st.button("Prediksi Sekarang") and model:
+
+    prediction = model.predict([[current_price]])[0]
+
+    selisih = prediction - current_price
+    persentase = (selisih / current_price) * 100
+
+    st.subheader("Hasil Prediksi")
     
-    for _ in range(days):
-
-        prediction = model.predict([[current_val]])[0]
-        future_prices.append(prediction)
-        current_val = prediction 
-
-    df = pd.DataFrame({
-        "Hari": [f"Hari ke-{i+1}" for i in range(days)],
-        "Harga": future_prices
-    })
-
-    st.metric(label="Prediksi Harga Besok", value=f"Rp {future_prices[0]:,.2f}")
-
-    chart_data = pd.DataFrame({"Harga": [last_price] + future_prices})
-    st.line_chart(chart_data)
-
-    st.dataframe(
-        df,
-        hide_index=True,
-        use_container_width=True,
-        column_config={
-            "Harga": st.column_config.NumberColumn(format="Rp %.2f")
-        }
+    st.metric(
+        label="Prediksi Harga Besok",
+        value=f"Rp {prediction:,.2f}",
+        delta=f"{selisih:,.2f} ({persentase:.2f}%)"
     )
 
-    with st.expander("Rumus Model"):
-        c, i = model.coef_[0], model.intercept_
-        st.latex(f"Harga_t = (Harga_{{t-1}} \\times {c:.4f}) + {i:.4f}")
+    st.subheader("Grafik Perbandingan")
+    
+    chart_data = pd.DataFrame({
+        "Harga": [current_price, prediction]
+    }, index=["Hari Ini", "Besok (Prediksi)"])
+    
+    st.bar_chart(chart_data)
 
-elif not predict_btn:
-    st.info("👈 Masukkan data di sidebar dan klik 'Prediksi'.")
+elif not model:
+    st.info("Model belum siap digunakan.")
